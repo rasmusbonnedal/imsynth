@@ -3,11 +3,13 @@
 #include <imgui.h>
 #include <imgui_node_editor.h>
 
+#include "audio_engine.h"
+
 namespace ed = ax::NodeEditor;
 
 class MainWindow_impl : public MainWindow {
    public:
-    MainWindow_impl();
+    MainWindow_impl(AudioEngine& audio);
     ~MainWindow_impl();
     void frame() override;
 
@@ -20,13 +22,14 @@ class MainWindow_impl : public MainWindow {
     ed::EditorContext* m_context = 0;
     ImVector<LinkInfo> m_links;
     int m_NextLinkId = 100;
+    AudioEngine& m_audio;
 };
 
-std::unique_ptr<ImguiWindow> MainWindow::create() {
-    return std::make_unique<MainWindow_impl>();
+std::unique_ptr<ImguiWindow> MainWindow::create(AudioEngine& audio) {
+    return std::make_unique<MainWindow_impl>(audio);
 }
 
-MainWindow_impl::MainWindow_impl() {
+MainWindow_impl::MainWindow_impl(AudioEngine& audio) : m_audio(audio) {
     ed::Config config;
     config.SettingsFile = "imsynth-nodeed.json";
     m_context = ed::CreateEditor(&config);
@@ -51,6 +54,8 @@ void MainWindow_impl::frame() {
     ed::BeginPin(uniqueId++, ed::PinKind::Output);
     ImGui::Text("Out ->");
     ed::EndPin();
+    ImGui::SetNextItemWidth(80);
+    ImGui::DragFloat("Freq", m_audio.freq(), 0.1f, 20, 6000, "%.1f");
     ed::EndNode();
 
     ed::BeginNode(uniqueId++);

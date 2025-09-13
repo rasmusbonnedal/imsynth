@@ -7,3 +7,6 @@
 [submodule "ext/glfw"]
 	path = ext/glfw
 	url = https://github.com/glfw/glfw
+[submodule "ext/miniaudio"]
+	path = ext/miniaudio
+	url = https://github.com/mackron/miniaudio

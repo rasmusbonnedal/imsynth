@@ -56,3 +56,12 @@ if (MSVC)
     target_compile_options(imgui-node-editor PRIVATE /wd4390)
 endif ()
 set_target_properties(imgui-node-editor PROPERTIES FOLDER "ext")
+
+# https://github.com/mackron/miniaudio
+add_subdirectory(miniaudio)
+set_target_properties(miniaudio PROPERTIES FOLDER "ext")
+set_target_properties(miniaudio_channel_combiner_node PROPERTIES FOLDER "ext")
+set_target_properties(miniaudio_channel_separator_node PROPERTIES FOLDER "ext")
+set_target_properties(miniaudio_ltrim_node PROPERTIES FOLDER "ext")
+set_target_properties(miniaudio_reverb_node PROPERTIES FOLDER "ext")
+set_target_properties(miniaudio_vocoder_node PROPERTIES FOLDER "ext")

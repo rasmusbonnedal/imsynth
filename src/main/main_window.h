@@ -1,8 +1,10 @@
 #pragma once
 
-#include "imguiwindow.h"
+#include "imgui_window.h"
+
+class AudioEngine;
 
 class MainWindow : public ImguiWindow {
    public:
-    static std::unique_ptr<ImguiWindow> create();
+    static std::unique_ptr<ImguiWindow> create(AudioEngine& audio);
 };

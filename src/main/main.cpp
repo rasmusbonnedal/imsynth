@@ -17,6 +17,7 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
+#include "audio_engine.h"
 #include "main_window.h"
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
@@ -124,7 +125,9 @@ int main(int, char**)
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     ImguiWindowVector windows;
 
-    windows.push_back(MainWindow::create());
+    auto audio = AudioEngine::create();
+    windows.push_back(MainWindow::create(*audio));
+    audio->init();
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -179,6 +182,7 @@ int main(int, char**)
 
     glfwDestroyWindow(window);
     glfwTerminate();
+    audio.reset();
 
     return 0;
 }
