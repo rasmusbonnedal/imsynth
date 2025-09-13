@@ -28,18 +28,6 @@ target_include_directories(imgui_glfw PUBLIC imgui imgui/backends)
 target_link_libraries(imgui_glfw glfw ${OPENGL_LIBRARY})
 set_target_properties(imgui_glfw PROPERTIES FOLDER "ext")
 
-add_library(imgui_glfw_opengl2
-    imgui/imgui.cpp
-    imgui/imgui_draw.cpp
-    imgui/imgui_tables.cpp
-    imgui/imgui_widgets.cpp
-    imgui/backends/imgui_impl_glfw.cpp
-    imgui/backends/imgui_impl_opengl2.cpp
-)
-target_include_directories(imgui_glfw_opengl2 PUBLIC imgui imgui/backends)
-target_link_libraries(imgui_glfw_opengl2 glfw ${OPENGL_LIBRARY})
-set_target_properties(imgui_glfw_opengl2 PROPERTIES FOLDER "ext")
-
 add_executable(imgui_demo
     imgui/imgui_demo.cpp
     imgui/examples/example_glfw_opengl3/main.cpp)

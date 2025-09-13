@@ -1,0 +1,6 @@
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 140
+
+# We dont want to force short functions to become one-liners.
+AllowShortFunctionsOnASingleLine: Empty
