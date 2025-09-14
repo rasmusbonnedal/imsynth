@@ -1,55 +1,33 @@
 #include "audio_engine.h"
 
+#include "audio_graph.h"
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 
 #include <miniaudio.h>
-
-class SineGenerator {
-   public:
-    SineGenerator() {
-        m_freq = 440;
-        m_phase = 0;
-        m_multiplier = 2.0 * M_PI / 48000.0;
-    }
-
-    float generate() {
-        m_phase += m_freq * m_multiplier;
-        if (m_phase > M_PI) {
-            m_phase -= M_PI;
-        }
-        return 0.25 * sin(m_phase);
-    }
-
-    float& freq() {
-        return m_freq;
-    }
-
-   private:
-    float m_freq;
-    float m_phase;
-    float m_multiplier;
-};
 
 class AudioEngineImpl : public AudioEngine {
    public:
     AudioEngineImpl();
     ~AudioEngineImpl();
     int init() override;
-    float* freq() override;
+    void setGraph(AuNodeGraphPtr graph);
 
    private:
     static void s_dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
     void dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
     ma_device m_device;
-    SineGenerator m_sine;
+    AuNodeGraphPtr m_node_graph;
 };
 
 std::unique_ptr<AudioEngine> AudioEngine::create() {
     return std::make_unique<AudioEngineImpl>();
 }
 
-AudioEngineImpl::AudioEngineImpl() {}
+AudioEngineImpl::AudioEngineImpl() {
+    m_node_graph = 0;
+}
 
 AudioEngineImpl::~AudioEngineImpl() {
     ma_device_uninit(&m_device);
@@ -71,10 +49,9 @@ int AudioEngineImpl::init() {
     return 0;
 }
 
-float* AudioEngineImpl::freq() {
-    return &m_sine.freq();
+void AudioEngineImpl::setGraph(AuNodeGraphPtr node_graph) {
+    m_node_graph = node_graph;
 }
-
 
 void AudioEngineImpl::s_dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     ((AudioEngineImpl*)pDevice->pUserData)->dataCallback(pDevice, pOutput, pInput, frameCount);
@@ -83,7 +60,7 @@ void AudioEngineImpl::s_dataCallback(ma_device* pDevice, void* pOutput, const vo
 void AudioEngineImpl::dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     float* out = (float*)pOutput;
     for (ma_uint32 i = 0; i < frameCount; ++i) {
-        float sample = m_sine.generate();
+        float sample = m_node_graph ? m_node_graph->outputNode()->generate() : 0.0;
         *out++ = sample;
         *out++ = sample;
     }

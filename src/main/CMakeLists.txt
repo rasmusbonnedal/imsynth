@@ -1,6 +1,8 @@
 add_executable(imsynth
 	audio_engine.cpp
 	audio_engine.h
+    audio_graph.cpp
+    audio_graph.h
     imgui_window.h
 	main.cpp
 	main_window.cpp

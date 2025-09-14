@@ -3,9 +3,83 @@
 #include <imgui.h>
 #include <imgui_node_editor.h>
 
+#include <iostream>
+#include <map>
+
 #include "audio_engine.h"
 
 namespace ed = ax::NodeEditor;
+
+class EdIdMapper {
+   public:
+    EdIdMapper() : m_next_free_index(100) {}
+
+    ed::NodeId getNodeId(AuNodePtr node) {
+        return (ed::NodeId)get(pt(node, 0, Node));
+    }
+
+    ed::PinId getInPinId(AuNodePtr node, int index) {
+        return (ed::PinId)get(pt(node, index, InPin));
+    }
+
+    ed::PinId getOutPinId(AuNodePtr node) {
+        return (ed::PinId)get(pt(node, 0, OutPin));
+    }
+
+    ed::LinkId getLinkId(AuNodePtr node, int input_index) {
+        return (ed::LinkId)get(pt(node, input_index, Link));
+    }
+
+    AuNodePtr getNode(ed::NodeId id) {
+        assert(m_id_to_ptr.count((size_t)id) > 0);
+        auto p = m_id_to_ptr[(size_t)id];
+        assert(p.second.second == Node);
+        return p.first;
+    }
+
+    std::pair<AuNodePtr, int> getInPin(ed::PinId id) {
+        assert(m_id_to_ptr.count((size_t)id) > 0);
+        auto p = m_id_to_ptr[(size_t)id];
+        assert(p.second.second == InPin);
+        return {p.first, p.second.first};
+    }
+
+    AuNodePtr getOutPin(ed::PinId id) {
+        assert(m_id_to_ptr.count((size_t)id) > 0);
+        auto p = m_id_to_ptr[(size_t)id];
+        assert(p.second.second == OutPin);
+        return p.first;
+    }
+
+    std::pair<AuNodePtr, int> getLink(ed::LinkId id) {
+        assert(m_id_to_ptr.count((size_t)id) > 0);
+        auto p = m_id_to_ptr[(size_t)id];
+        assert(p.second.second == Link);
+        return {p.first, p.second.first};
+    }
+
+   private:
+    enum Type { Node, InPin, OutPin, Link };
+    using PtrType = std::pair<AuNodePtr, std::pair<int, Type>>;
+    PtrType pt(AuNodePtr node, int index, Type type) {
+        return {node, {index, type}};
+    }
+
+    size_t get(PtrType p) {
+        if (m_ptr_to_id.count(p) == 0) {
+            size_t id = m_next_free_index++;
+            m_ptr_to_id[p] = id;
+            m_id_to_ptr[id] = p;
+            return id;
+        } else {
+            return m_ptr_to_id[p];
+        }
+    }
+
+    std::map<PtrType, size_t> m_ptr_to_id;
+    std::map<size_t, PtrType> m_id_to_ptr;
+    size_t m_next_free_index;
+};
 
 class MainWindow_impl : public MainWindow {
    public:
@@ -14,15 +88,11 @@ class MainWindow_impl : public MainWindow {
     void frame() override;
 
    private:
-    struct LinkInfo {
-        ed::LinkId Id;
-        ed::PinId InputId;
-        ed::PinId OutputId;
-    };
     ed::EditorContext* m_context = 0;
-    ImVector<LinkInfo> m_links;
     int m_NextLinkId = 100;
     AudioEngine& m_audio;
+    AuNodeGraphPtr m_node_graph;
+    EdIdMapper m_id_mapper;
 };
 
 std::unique_ptr<ImguiWindow> MainWindow::create(AudioEngine& audio) {
@@ -33,6 +103,8 @@ MainWindow_impl::MainWindow_impl(AudioEngine& audio) : m_audio(audio) {
     ed::Config config;
     config.SettingsFile = "imsynth-nodeed.json";
     m_context = ed::CreateEditor(&config);
+    m_node_graph = createTestGraph();
+    m_audio.setGraph(m_node_graph);
 }
 
 MainWindow_impl::~MainWindow_impl() {
@@ -43,34 +115,44 @@ void MainWindow_impl::frame() {
     ImGui::Begin("ImSynth");
     ed::SetCurrentEditor(m_context);
     ed::Begin("My Editor", ImVec2(0.0, 0.0f));
-    int uniqueId = 1;
 
-    ed::BeginNode(uniqueId++);
-    ImGui::Text("Node A");
-    ed::BeginPin(uniqueId++, ed::PinKind::Input);
-    ImGui::Text("-> In");
-    ed::EndPin();
-    ImGui::SameLine();
-    ed::BeginPin(uniqueId++, ed::PinKind::Output);
-    ImGui::Text("Out ->");
-    ed::EndPin();
-    ImGui::SetNextItemWidth(80);
-    ImGui::DragFloat("Freq", m_audio.freq(), 0.1f, 20, 6000, "%.1f");
-    ed::EndNode();
+    int links = 0;
+    for (const auto& node : m_node_graph->nodes()) {
+        ImGui::PushID(node.get());
+        ed::NodeId node_id = m_id_mapper.getNodeId(node);
+        ed::BeginNode(node_id);
+        ImGui::Text((std::string(node->name())).c_str());
+        for (size_t i = 0; i < std::max((size_t)1, node->inPins()); ++i) {
+            if (i < node->inPins()) {
+                ed::PinId in_pin = m_id_mapper.getInPinId(node, i);
+                ed::BeginPin(in_pin, ed::PinKind::Input);
+                ImGui::Text((node->inPin(i).name() + std::to_string((size_t)in_pin)).c_str());
+                ed::EndPin();
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50);
+                ImGui::PushID(i);
+                ImGui::DragFloat("", &(node->inPin(i).value()), 0.1, 0, 100, "%.1f");
+                ImGui::PopID();
+            }
+            if (i == 0) {
+                ImGui::SameLine();
+                ed::PinId out_pin = m_id_mapper.getOutPinId(node);
+                ed::BeginPin(out_pin, ed::PinKind::Output);
+                ImGui::Text((std::string("out ") + std::to_string((size_t)out_pin)).c_str());
+                ed::EndPin();
+            }
+        }
+        ed::EndNode();
+        ImGui::PopID();
 
-    ed::BeginNode(uniqueId++);
-    ImGui::Text("Node B");
-    ed::BeginPin(uniqueId++, ed::PinKind::Input);
-    ImGui::Text("-> In");
-    ed::EndPin();
-    ImGui::SameLine();
-    ed::BeginPin(uniqueId++, ed::PinKind::Output);
-    ImGui::Text("Out ->");
-    ed::EndPin();
-    ed::EndNode();
-
-    for (auto& linkInfo : m_links) {
-        ed::Link(linkInfo.Id, linkInfo.InputId, linkInfo.OutputId);
+        for (size_t pin = 0; pin < node->inPins(); ++pin) {
+            if (AuNodePtr upstream = node->inPin(pin).node()) {
+                ed::LinkId link_id = m_id_mapper.getLinkId(node, pin);
+                ed::PinId in_pin_id = m_id_mapper.getInPinId(node, pin);
+                ed::PinId out_pin_id = m_id_mapper.getOutPinId(upstream);
+                ed::Link(link_id, in_pin_id, out_pin_id);
+            }
+        }
     }
 
     if (ed::BeginCreate()) {
@@ -92,11 +174,12 @@ void MainWindow_impl::frame() {
             {
                 // ed::AcceptNewItem() return true when user release mouse button.
                 if (ed::AcceptNewItem()) {
-                    // Since we accepted new link, lets add one to our list of links.
-                    m_links.push_back({ed::LinkId(m_NextLinkId++), inputPinId, outputPinId});
-
+                    auto inpin = m_id_mapper.getInPin(outputPinId);
+                    auto outpin = m_id_mapper.getOutPin(inputPinId);
+                    inpin.first->inPin(inpin.second).connect(outpin);
                     // Draw new link.
-                    ed::Link(m_links.back().Id, m_links.back().InputId, m_links.back().OutputId);
+                    // ed::Link(m_links.back().Id, m_links.back().InputId, m_links.back().OutputId);
+                    ed::Link(m_id_mapper.getLinkId(inpin.first, inpin.second), inputPinId, outputPinId);
                 }
 
                 // You may choose to reject connection between these nodes
@@ -115,14 +198,9 @@ void MainWindow_impl::frame() {
             // If you agree that link can be deleted, accept deletion.
             if (ed::AcceptDeletedItem()) {
                 // Then remove link from your data.
-                for (auto& link : m_links) {
-                    if (link.Id == deletedLinkId) {
-                        m_links.erase(&link);
-                        break;
-                    }
-                }
+                auto link = m_id_mapper.getLink(deletedLinkId);
+                link.first->inPin(link.second).disconnect();
             }
-
             // You may reject link deletion by calling:
             // ed::RejectDeletedItem();
         }
