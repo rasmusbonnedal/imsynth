@@ -7,12 +7,45 @@
 
 #include <miniaudio.h>
 
+class SineGenerator {
+   public:
+    SineGenerator() {
+        m_freq = 440;
+        m_phase = 0;
+        m_multiplier = 2.0 * M_PI / 48000.0;
+        m_amp = 0.25;
+    }
+
+    float generate() {
+        m_phase += m_freq * m_multiplier;
+        if (m_phase > 2.0f*M_PI) {
+            m_phase -= 2.0f * M_PI;
+        }
+        return m_amp * sin(m_phase);
+    }
+
+    float& freq() {
+        return m_freq;
+    }
+
+    float& amp() {
+        return m_amp;
+    }
+
+   private:
+    float m_freq;
+    float m_phase;
+    float m_multiplier;
+    float m_amp;
+};
+
 class AudioEngineImpl : public AudioEngine {
    public:
     AudioEngineImpl();
     ~AudioEngineImpl();
     int init() override;
     void setGraph(AuNodeGraphPtr graph);
+    float* amp() override;
 
    private:
     static void s_dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
@@ -52,6 +85,11 @@ int AudioEngineImpl::init() {
 void AudioEngineImpl::setGraph(AuNodeGraphPtr node_graph) {
     m_node_graph = node_graph;
 }
+
+float* AudioEngineImpl::amp() {
+    return &m_sine.amp();
+}
+
 
 void AudioEngineImpl::s_dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     ((AudioEngineImpl*)pDevice->pUserData)->dataCallback(pDevice, pOutput, pInput, frameCount);

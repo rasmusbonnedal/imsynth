@@ -13,6 +13,8 @@ target_link_libraries(imsynth
 	imgui_glfw
 	imgui-node-editor
 	miniaudio
+	Winmm
+
 )
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT imsynth)

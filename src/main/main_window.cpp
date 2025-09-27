@@ -7,6 +7,7 @@
 #include <map>
 
 #include "audio_engine.h"
+#include <string>
 
 namespace ed = ax::NodeEditor;
 
@@ -209,6 +210,11 @@ void MainWindow_impl::frame() {
 
     ed::End();
     ed::SetCurrentEditor(nullptr);
+    
+    
 
     ImGui::End();
+
+    
+
 }
