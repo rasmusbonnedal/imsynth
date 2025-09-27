@@ -7,6 +7,8 @@ add_executable(imsynth
 	main.cpp
 	main_window.cpp
     main_window.h
+	midi_node.cpp
+	midi_node.h
 )
 
 target_link_libraries(imsynth

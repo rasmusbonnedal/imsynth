@@ -9,7 +9,6 @@
 
 #include <string>
 
-
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -22,7 +21,7 @@
 
 #include "audio_engine.h"
 #include "main_window.h"
-
+#include "midi_node.h"
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
@@ -39,67 +38,6 @@
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
-}
-#include <Windows.h>
-
-struct midi_key_status {
-    float amplitude;
-    bool is_pressed;
-};
-
-float global_freq = 440.0f;
-float global_amp = 0.25f;
-midi_key_status midi_keys[256] = {0};
-
-float map_midi_to_freq(BYTE midi_in) {
-    
-    float a = ((float)midi_in - 69.0) / 12.0;
-    float f = 440.0 * pow(2.0, a);
-
-    return f;
-   
-}
-
-void CALLBACK MidiInProc(HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
-    if (wMsg == MIM_DATA) {
-        BYTE status = dwParam1 & 0xFF;
-        BYTE data1 = (dwParam1 >> 8) & 0xFF;
-        BYTE data2 = (dwParam1 >> 16) & 0xFF;
-
-        if (status == 144) {
-            global_freq = map_midi_to_freq(data1);
-            global_amp = float(data2) / 127.0;
-            midi_keys[data1].amplitude = global_amp;
-            midi_keys[data1].is_pressed = true;
-        }
-        if (status == 128) {
-            global_amp = 0.0f;
-            midi_keys[data1].is_pressed = false;
-            
-        }
-        
-        //std::cout << "MIDI Message: Status=" << (int)status << ", Data1=" << (int)data1 << ", Data2=" << (int)data2 << std::endl;
-        printf("MIDI Message: Status= %x, Data1= %x, Data2= %x, \n", status, data1, data2);
-        printf("new freq %f \n", global_freq);
-
-        //at shutdown do this as well....
-        //midiInStop(hMidiIn);
-        //midiInClose(hMidiIn);
-    }
-}
-
-
-
-void init_midi_device() {
-    HMIDIIN hMidiIn;
-    UINT numDevices = midiInGetNumDevs();
-    if (numDevices == 0) {
-        printf("hepp\n");
-    }
-    if (midiInOpen(&hMidiIn, 0, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
-        printf("Failed to open MIDI input device!");
-    }
-    midiInStart(hMidiIn);
 }
 
 // Main code
@@ -192,9 +130,8 @@ int main(int, char**)
 
     auto audio = AudioEngine::create();
     windows.push_back(MainWindow::create(*audio));
+    windows.push_back(MidiWindow::create());
     audio->init();
-
-    init_midi_device();
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -217,8 +154,6 @@ int main(int, char**)
             ImGui_ImplGlfw_Sleep(10);
             continue;
         }
-        *audio->freq() = global_freq;
-        *audio->amp() = global_amp;
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -228,57 +163,7 @@ int main(int, char**)
             window->frame();
         }
 
-        ImGui::Begin("Input stats");
-        /*
-        static int clicked = 0;
-        if (ImGui::Button("Button", ImVec2(32, 32))) clicked++;
-        if (clicked & 1) {
-            ImGui::SameLine();
-            ImGui::Text("Thanks for clicking me!");
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Button2")) clicked++;
-        if (clicked & 1) {
-            ImGui::SameLine();
-            ImGui::Text("Thanks for clicking me!");
-        }
-        */
-        float total_amp = 0.0f;
-        int nof_keys_pressed = 0;
-        for (int b_idx = 0; b_idx < 128; b_idx++) {
-
-            
-
-            float amp = midi_keys[b_idx].amplitude;
-            total_amp += amp;
-            float r = amp * 0.4f + (1.0f - amp) * 0.7f;
-            float g = amp * 0.7f + (1.0f - amp) * 0.4f;
-            float b = 0.2f;
-            /*
-            if (midi_keys[b_idx].is_pressed) {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.7f, 0.2f, 1.0f));
-            } else {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.4f, 0.2f, 1.0f));
-            }
-            */
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(r, g, b, 1.0f));
-
-            ImGui::Button(std::to_string(b_idx).c_str(), ImVec2(32, 32));
-            if ((b_idx + 1) % 8 != 0) {
-                ImGui::SameLine();
-            }
-            ImGui::PopStyleColor(1);
-
-            if (midi_keys[b_idx].is_pressed == false) {
-                midi_keys[b_idx].amplitude *= .9;
-                if (midi_keys[b_idx].amplitude < 0.01f) {
-                    midi_keys[b_idx].amplitude = 0.0f;
-                }
-            } else {
-                nof_keys_pressed++;
-            }
-                
-        }
+#if 0
         float new_freq = 0.0f;
         float new_amp = 0.0f;
         for (int b_idx = 0; b_idx < 128; b_idx++) {
@@ -291,7 +176,7 @@ int main(int, char**)
         }
         global_freq = new_freq;
         global_amp = new_amp;
-        ImGui::End();
+#endif
 
         // Rendering
         ImGui::Render();

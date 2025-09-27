@@ -23,8 +23,8 @@ class EdIdMapper {
         return (ed::PinId)get(pt(node, index, InPin));
     }
 
-    ed::PinId getOutPinId(AuNodePtr node) {
-        return (ed::PinId)get(pt(node, 0, OutPin));
+    ed::PinId getOutPinId(AuNodePtr node, int index) {
+        return (ed::PinId)get(pt(node, index, OutPin));
     }
 
     ed::LinkId getLinkId(AuNodePtr node, int input_index) {
@@ -45,11 +45,11 @@ class EdIdMapper {
         return {p.first, p.second.first};
     }
 
-    AuNodePtr getOutPin(ed::PinId id) {
+    std::pair<AuNodePtr, int> getOutPin(ed::PinId id) {
         assert(m_id_to_ptr.count((size_t)id) > 0);
         auto p = m_id_to_ptr[(size_t)id];
         assert(p.second.second == OutPin);
-        return p.first;
+        return {p.first, p.second.first};
     }
 
     std::pair<AuNodePtr, int> getLink(ed::LinkId id) {
@@ -123,23 +123,34 @@ void MainWindow_impl::frame() {
         ed::NodeId node_id = m_id_mapper.getNodeId(node);
         ed::BeginNode(node_id);
         ImGui::Text((std::string(node->name())).c_str());
-        for (size_t i = 0; i < std::max((size_t)1, node->inPins()); ++i) {
+        for (size_t i = 0; i < std::max(node->outPins(), node->inPins()); ++i) {
             if (i < node->inPins()) {
                 ed::PinId in_pin = m_id_mapper.getInPinId(node, i);
                 ed::BeginPin(in_pin, ed::PinKind::Input);
-                ImGui::Text((node->inPin(i).name() + std::to_string((size_t)in_pin)).c_str());
+                Pin& inpin = node->inPin(i);
+                ImGui::Text(inpin.name().c_str());
+                // ImGui::Text((node->inPin(i).name() + std::to_string((size_t)in_pin)).c_str());
                 ed::EndPin();
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
                 ImGui::PushID(i);
-                ImGui::DragFloat("", &(node->inPin(i).value()), 0.1, 0, 100, "%.1f");
+                if (inpin.node()) {
+                    ImGui::Text("%.1f", inpin.generate());
+                }
+                else {
+                    ImGui::DragFloat("", &(node->inPin(i).value()), 0.1, 0, 100, "%.1f");
+                }
                 ImGui::PopID();
             }
-            if (i == 0) {
+            else {
+                ImGui::Text("                   ");
+            }
+            if (i < node->outPins()) {
                 ImGui::SameLine();
-                ed::PinId out_pin = m_id_mapper.getOutPinId(node);
+                ed::PinId out_pin = m_id_mapper.getOutPinId(node, i);
                 ed::BeginPin(out_pin, ed::PinKind::Output);
-                ImGui::Text((std::string("out ") + std::to_string((size_t)out_pin)).c_str());
+                //ImGui::Text((node->outPin(i).name() + std::to_string((size_t)out_pin)).c_str());
+                ImGui::Text(node->outPin(i).name().c_str());
                 ed::EndPin();
             }
         }
@@ -150,7 +161,7 @@ void MainWindow_impl::frame() {
             if (AuNodePtr upstream = node->inPin(pin).node()) {
                 ed::LinkId link_id = m_id_mapper.getLinkId(node, pin);
                 ed::PinId in_pin_id = m_id_mapper.getInPinId(node, pin);
-                ed::PinId out_pin_id = m_id_mapper.getOutPinId(upstream);
+                ed::PinId out_pin_id = m_id_mapper.getOutPinId(upstream, node->inPin(pin).index());
                 ed::Link(link_id, in_pin_id, out_pin_id);
             }
         }
@@ -177,7 +188,7 @@ void MainWindow_impl::frame() {
                 if (ed::AcceptNewItem()) {
                     auto inpin = m_id_mapper.getInPin(outputPinId);
                     auto outpin = m_id_mapper.getOutPin(inputPinId);
-                    inpin.first->inPin(inpin.second).connect(outpin);
+                    inpin.first->inPin(inpin.second).connect(outpin.first, outpin.second);
                     // Draw new link.
                     // ed::Link(m_links.back().Id, m_links.back().InputId, m_links.back().OutputId);
                     ed::Link(m_id_mapper.getLinkId(inpin.first, inpin.second), inputPinId, outputPinId);

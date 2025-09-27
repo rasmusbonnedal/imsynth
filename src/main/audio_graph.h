@@ -49,8 +49,9 @@ class Pin {
         return m_value;
     }
 
-    void connect(AuNodePtr node) {
+    void connect(AuNodePtr node, size_t index) {
         m_connection = node;
+        m_index = index;
     }
 
     void disconnect() {
@@ -61,6 +62,10 @@ class Pin {
         return m_connection;
     }
 
+    size_t index() const {
+        return m_index;
+    }
+
     const std::string& name() const {
         return m_name;
     }
@@ -69,14 +74,17 @@ class Pin {
     std::string m_name;
     float m_value;
     AuNodePtr m_connection;
+    size_t m_index;
 };
 
 class AuNode {
    public:
     virtual ~AuNode() {}
-    virtual float generate() = 0;
+    virtual float generate(size_t index) = 0;
     virtual size_t inPins() = 0;
     virtual Pin& inPin(size_t index) = 0;
+    virtual size_t outPins() = 0;
+    virtual Pin& outPin(size_t index) = 0;
     virtual std::string_view name() const = 0;
 };
 
@@ -84,21 +92,25 @@ class AuNodeBase : public AuNode {
    public:
     size_t inPins() override;
     Pin& inPin(size_t index) override;
+    size_t outPins() override;
+    Pin& outPin(size_t index) override;
 
     void addInPin(const std::string& name, float value);
+    void addOutPin(const std::string& name);
 
    protected:
     std::vector<Pin> m_in_pins;
+    std::vector<Pin> m_out_pins;
 };
 
 inline float Pin::generate() const {
-    return m_connection ? m_connection->generate() : m_value;
+    return m_connection ? m_connection->generate(m_index) : m_value;
 }
 
 class AuSineGenerator : public AuNodeBase {
    public:
     AuSineGenerator();
-    float generate() override;
+    float generate(size_t index) override;
     std::string_view name() const {
         return "SineGenerator";
     }
@@ -111,7 +123,7 @@ class AuSineGenerator : public AuNodeBase {
 class AuSub : public AuNodeBase {
    public:
     AuSub();
-    float generate() override;
+    float generate(size_t index) override;
     std::string_view name() const {
         return "Sub";
     }
