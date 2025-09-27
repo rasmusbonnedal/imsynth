@@ -8,6 +8,8 @@
 #include <string_view>
 #include <vector>
 
+
+
 class AuNode;
 class AuNodeGraph;
 
@@ -118,6 +120,21 @@ class AuSineGenerator : public AuNodeBase {
    private:
     float m_phase;
     float m_multiplier;
+};
+
+class AuHexGenerator : public AuNodeBase {
+   public:
+    AuHexGenerator();
+    float generate(size_t index) override;
+    std::string_view name() const {
+        return "HexGenerator";
+    }
+
+   private:
+    float m_phase;
+    float m_multiplier;
+    float m_samples[1024] = {0};
+    void* m_osc;
 };
 
 class AuSub : public AuNodeBase {

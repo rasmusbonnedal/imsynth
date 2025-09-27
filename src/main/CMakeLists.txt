@@ -3,6 +3,7 @@ add_executable(imsynth
 	audio_engine.h
     audio_graph.cpp
     audio_graph.h
+    stb_hexwave.h
     imgui_window.h
 	main.cpp
 	main_window.cpp
