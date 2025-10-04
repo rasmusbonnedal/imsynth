@@ -113,13 +113,9 @@ AuNodeGraphPtr createTestGraph() {
     sin1->inPin(0).set(440);
     sin1->inPin(1).set(0.8);
     node_graph->addNode(sin1);
-    AuNodePtr sin2 = std::make_shared<AuHexGenerator>();
-    sin2->inPin(0).set(100);
-    sin2->inPin(1).set(0.8);
-    node_graph->addNode(sin2);
+    node_graph->addNode(std::make_shared<AuHexGenerator>());
     AuNodePtr sub = std::make_shared<AuSub>();
     sub->inPin(0).connect(sin1, 0);
-    sub->inPin(1).connect(sin2, 0);
     node_graph->addNode(sub);
     node_graph->setOutputNode(sub);
     return node_graph;

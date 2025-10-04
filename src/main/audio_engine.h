@@ -9,6 +9,7 @@ class AudioEngine {
     virtual ~AudioEngine() {}
     virtual int init() = 0;
     virtual void setGraph(AuNodeGraphPtr graph) = 0;
+    virtual AuNodeGraphPtr getGraph() = 0;
     static std::unique_ptr<AudioEngine> create();
 
    private:

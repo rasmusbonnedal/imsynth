@@ -22,6 +22,7 @@
 #include "audio_engine.h"
 #include "main_window.h"
 #include "midi_node.h"
+#include "node_window.h"
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
@@ -131,6 +132,7 @@ int main(int, char**)
     auto audio = AudioEngine::create();
     windows.push_back(MainWindow::create(*audio));
     windows.push_back(MidiWindow::create());
+    windows.push_back(NodeWindow::create(*audio));
     audio->init();
 
     // Main loop

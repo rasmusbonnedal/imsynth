@@ -30,7 +30,7 @@ class MidiDevice {
    private:
     static void CALLBACK MidiInProc(HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2);
     void midiInProc(DWORD_PTR dwParam1, DWORD_PTR dwParam2);
-    float MidiDevice::map_midi_to_freq(BYTE midi_in);
+    float map_midi_to_freq(BYTE midi_in);
     HMIDIIN hMidiIn;
     float m_freq;
     float m_amp;

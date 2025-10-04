@@ -14,7 +14,8 @@ class AudioEngineImpl : public AudioEngine {
     AudioEngineImpl();
     ~AudioEngineImpl();
     int init() override;
-    void setGraph(AuNodeGraphPtr graph);
+    void setGraph(AuNodeGraphPtr graph) override;
+    AuNodeGraphPtr getGraph() override;
 
    private:
     static void s_dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
@@ -53,6 +54,10 @@ int AudioEngineImpl::init() {
 
 void AudioEngineImpl::setGraph(AuNodeGraphPtr node_graph) {
     m_node_graph = node_graph;
+}
+
+AuNodeGraphPtr AudioEngineImpl::getGraph() {
+    return m_node_graph;
 }
 
 void AudioEngineImpl::s_dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {

@@ -3,11 +3,12 @@
 #include <imgui.h>
 #include <imgui_node_editor.h>
 
+#include <format>
 #include <iostream>
 #include <map>
+#include <string>
 
 #include "audio_engine.h"
-#include <string>
 
 namespace ed = ax::NodeEditor;
 
@@ -57,6 +58,14 @@ class EdIdMapper {
         auto p = m_id_to_ptr[(size_t)id];
         assert(p.second.second == Link);
         return {p.first, p.second.first};
+    }
+
+    bool isInPin(ed::PinId id) const {
+        return m_id_to_ptr.count((size_t)id) > 0 && m_id_to_ptr.at((size_t)id).second.second == InPin;
+    }
+
+    bool isOutPin(ed::PinId id) const {
+        return m_id_to_ptr.count((size_t)id) > 0 && m_id_to_ptr.at((size_t)id).second.second == OutPin;
     }
 
    private:
@@ -112,6 +121,8 @@ MainWindow_impl::~MainWindow_impl() {
     ed::DestroyEditor(m_context);
 }
 
+// #define DEBUG_PINS
+
 void MainWindow_impl::frame() {
     ImGui::Begin("ImSynth");
     ed::SetCurrentEditor(m_context);
@@ -122,41 +133,50 @@ void MainWindow_impl::frame() {
         ImGui::PushID(node.get());
         ed::NodeId node_id = m_id_mapper.getNodeId(node);
         ed::BeginNode(node_id);
-        ImGui::Text((std::string(node->name())).c_str());
+#if defined(DEBUG_PINS)
+        ImGui::Text(std::format("{} ({})", node->name(), (size_t)node_id).c_str());
+#else
+        ImGui::Text(std::string(node->name()).c_str());
+#endif
         for (size_t i = 0; i < std::max(node->outPins(), node->inPins()); ++i) {
             if (i < node->inPins()) {
                 ed::PinId in_pin = m_id_mapper.getInPinId(node, i);
                 ed::BeginPin(in_pin, ed::PinKind::Input);
                 Pin& inpin = node->inPin(i);
+#if defined(DEBUG_PINS)
+                ImGui::Text(std::format("{} ({})", node->inPin(i).name(), (size_t)in_pin).c_str());
+#else
                 ImGui::Text(inpin.name().c_str());
-                // ImGui::Text((node->inPin(i).name() + std::to_string((size_t)in_pin)).c_str());
+#endif
                 ed::EndPin();
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
                 ImGui::PushID(i);
                 if (inpin.node()) {
                     ImGui::Text("%.1f", inpin.generate());
-                }
-                else {
+                } else {
                     ImGui::DragFloat("", &(node->inPin(i).value()), 0.1, 0, 100, "%.1f");
                 }
                 ImGui::PopID();
-            }
-            else {
+            } else {
                 ImGui::Text("                   ");
             }
             if (i < node->outPins()) {
                 ImGui::SameLine();
                 ed::PinId out_pin = m_id_mapper.getOutPinId(node, i);
                 ed::BeginPin(out_pin, ed::PinKind::Output);
-                //ImGui::Text((node->outPin(i).name() + std::to_string((size_t)out_pin)).c_str());
+#if defined(DEBUG_PINS)
+                ImGui::Text(std::format("{} ({})", node->outPin(i).name(), (size_t)out_pin).c_str());
+#else
                 ImGui::Text(node->outPin(i).name().c_str());
+#endif
                 ed::EndPin();
             }
         }
         ed::EndNode();
         ImGui::PopID();
-
+    }
+    for (const auto& node : m_node_graph->nodes()) {
         for (size_t pin = 0; pin < node->inPins(); ++pin) {
             if (AuNodePtr upstream = node->inPin(pin).node()) {
                 ed::LinkId link_id = m_id_mapper.getLinkId(node, pin);
@@ -184,19 +204,27 @@ void MainWindow_impl::frame() {
 
             if (inputPinId && outputPinId)  // both are valid, let's accept link
             {
-                // ed::AcceptNewItem() return true when user release mouse button.
-                if (ed::AcceptNewItem()) {
-                    auto inpin = m_id_mapper.getInPin(outputPinId);
-                    auto outpin = m_id_mapper.getOutPin(inputPinId);
-                    inpin.first->inPin(inpin.second).connect(outpin.first, outpin.second);
-                    // Draw new link.
-                    // ed::Link(m_links.back().Id, m_links.back().InputId, m_links.back().OutputId);
-                    ed::Link(m_id_mapper.getLinkId(inpin.first, inpin.second), inputPinId, outputPinId);
+                bool is_ok = false;
+                if (m_id_mapper.isOutPin(inputPinId) && m_id_mapper.isInPin(outputPinId)) {
+                    std::swap(inputPinId, outputPinId);
                 }
-
-                // You may choose to reject connection between these nodes
-                // by calling ed::RejectNewItem(). This will allow editor to give
-                // visual feedback by changing link thickness and color.
+                if (m_id_mapper.isOutPin(outputPinId) && m_id_mapper.isInPin(inputPinId)) {
+                    is_ok = true;
+                }
+                // ed::AcceptNewItem() return true when user release mouse button.
+                if (is_ok) {
+                    if (ed::AcceptNewItem()) {
+                        auto inpin = m_id_mapper.getInPin(inputPinId);
+                        auto outpin = m_id_mapper.getOutPin(outputPinId);
+                        if (inpin.first != outpin.first) {
+                            inpin.first->inPin(inpin.second).connect(outpin.first, outpin.second);
+                            // Draw new link.
+                            ed::Link(m_id_mapper.getLinkId(inpin.first, inpin.second), inputPinId, outputPinId);
+                        }
+                    }
+                } else {
+                    ed::RejectNewItem();
+                }
             }
         }
         ed::EndCreate();  // Wraps up object creation action handling.
@@ -221,11 +249,6 @@ void MainWindow_impl::frame() {
 
     ed::End();
     ed::SetCurrentEditor(nullptr);
-    
-    
 
     ImGui::End();
-
-    
-
 }
