@@ -126,19 +126,20 @@ class AuSineGenerator : public AuNodeBase {
     float m_multiplier;
 };
 
+struct HexWave;
+
 class AuHexGenerator : public AuNodeBase {
    public:
     AuHexGenerator();
+    ~AuHexGenerator();
     float generate(size_t index) override;
     std::string_view name() const {
         return "HexGenerator";
     }
 
    private:
-    float m_phase;
-    float m_multiplier;
-    float m_samples[1024] = {0};
-    void* m_osc;
+    HexWave* m_osc;
+    int m_wave_type;
 };
 
 class AuSub : public AuNodeBase {

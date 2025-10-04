@@ -48,13 +48,38 @@ float AuSineGenerator::generate(size_t index) {
     return inPin(1).generate() * sin(m_phase);
 }
 
+namespace {
+void sawtooth(int& reflect, float& time, float& height, float& wait) {
+    reflect = 1;
+    time = 1;
+    height = 0.5;
+    wait = 0;
+}
+void triangle(int& reflect, float& time, float& height, float& wait) {
+    reflect = 1;
+    time = 0.5;
+    height = 0;
+    wait = 0;
+}
+void square(int& reflect, float& time, float& height, float& wait) {
+    reflect = 1;
+    time = 0;
+    height = 1;
+    wait = 0;
+}
+void stairs(int& reflect, float& time, float& height, float& wait) {
+    reflect = 0;
+    time = 0;
+    height = 1;
+    wait = 0.5;
+}
+}  // namespace
+
 AuHexGenerator::AuHexGenerator() {
     addInPin("frequency", 440);
     addInPin("amplitude", 1);
+    addInPin("type", 0);
     addOutPin("out");
-    m_phase = 0;
-    m_multiplier = 2.0 * M_PI / 48000.0;
-
     //                     reflect   time   height   wait
     //      Sawtooth          1       1      any      0
     //      Sawtooth (8va)    1       0      -1       0
@@ -73,25 +98,43 @@ AuHexGenerator::AuHexGenerator() {
     float peak_time = 1.0f;
     float half_height = 0.5f;
     float zero_wait = 0.0f;
+    sawtooth(reflect_flag, peak_time, half_height, zero_wait);
+    hexwave_create(m_osc, reflect_flag, peak_time, half_height, zero_wait);
+    m_wave_type = 0;
+}
 
-
-    hexwave_create((HexWave*)m_osc, reflect_flag, peak_time, half_height, zero_wait);
-
-    
+AuHexGenerator::~AuHexGenerator() {
+    delete m_osc;
 }
 
 float AuHexGenerator::generate(size_t index) {
     assert(index < outPins());
-    m_phase += inPin(0).generate() * m_multiplier;
-    
-    while (m_phase > (2 * M_PI)) {
-        m_phase -= (2 * M_PI);
+    int wave_type = (int)inPin(2).generate();
+    if (wave_type != m_wave_type) {
+        m_wave_type = wave_type;
+        int reflect;
+        float time, height, wait;
+        switch (m_wave_type) {
+            case 0:
+                sawtooth(reflect, time, height, wait);
+                break;
+            case 1:
+                triangle(reflect, time, height, wait);
+                break;
+            case 2:
+                square(reflect, time, height, wait);
+                break;
+            default:
+                stairs(reflect, time, height, wait);
+                break;
+        }
+        hexwave_change(m_osc, reflect, time, height, wait);
     }
-    hexwave_generate_samples(&m_samples[0], 1024, (HexWave*)m_osc, inPin(0).generate() / 48000.0f);
-
-    int idx = (int)((m_phase / (2 * M_PI)) * 1024.0f);
-
-    return inPin(1).generate() * m_samples[idx];
+    // If this is smaller than this hexwave writes beyond the buffer with triangle
+    // wave
+    float samples[16];
+    hexwave_generate_samples(samples, 1, m_osc, inPin(0).generate() / 48000.0f);
+    return inPin(1).generate() * samples[0];
 }
 
 AuSub::AuSub() {
@@ -165,15 +208,13 @@ AuNodeGraphPtr createTestGraph() {
     AuNodePtr midi1 = std::make_shared<AuMidiSource>();
     node_graph->addNode(midi1);
 
-    AuNodePtr sin1 = std::make_shared<AuSineGenerator>();
-    node_graph->addNode(sin1);
-    sin1->inPin(0).connect(midi1, 1);
-
-    node_graph->addNode(std::make_shared<AuHexGenerator>());
+    auto hexwave = std::make_shared<AuHexGenerator>();
+    node_graph->addNode(hexwave);
+    hexwave->inPin(0).connect(midi1, 1);
 
     AuNodePtr sub = std::make_shared<AuSub>();
     node_graph->addNode(sub);
-    sub->inPin(0).connect(sin1, 0);
+    sub->inPin(0).connect(hexwave, 0);
     node_graph->setOutputNode(sub);
 
     auto adsr = std::make_shared<AuADSR>();
@@ -183,7 +224,7 @@ AuNodeGraphPtr createTestGraph() {
     adsr->inPin(3).set(0.1);  // S
     adsr->inPin(4).set(0.2);  // R
     node_graph->addNode(adsr);
-    sin1->inPin(1).connect(adsr, 0);
+    hexwave->inPin(1).connect(adsr, 0);
 
     return node_graph;
 }
