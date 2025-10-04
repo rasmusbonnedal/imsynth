@@ -20,6 +20,7 @@
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
 #include "audio_engine.h"
+#include "graph_window.h"
 #include "main_window.h"
 #include "midi_node.h"
 #include "node_window.h"
@@ -133,6 +134,7 @@ int main(int, char**)
     windows.push_back(MainWindow::create(*audio));
     windows.push_back(MidiWindow::create());
     windows.push_back(NodeWindow::create(*audio));
+    windows.push_back(GraphWindow::create(*audio));
     audio->init();
 
     // Main loop
