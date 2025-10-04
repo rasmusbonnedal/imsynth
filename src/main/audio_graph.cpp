@@ -141,7 +141,6 @@ float AuADSR::generate(size_t index) {
     m_t += 1.0 / 48000.0;
     // Assume note change when amplitude change
     if (amplitude != m_last) {
-        m_last = amplitude;
         // Assume note off, start release phase from current value
         if (amplitude == 0) {
             m_r = ads * m_last;
@@ -151,6 +150,7 @@ float AuADSR::generate(size_t index) {
             m_t = 0;
             m_r = 0;
         }
+        m_last = amplitude;
     }
     if (m_r > 0) {
         m_r = std::max(0.0f, m_r - m_rc);
