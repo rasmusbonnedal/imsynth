@@ -105,18 +105,85 @@ float AuSub::generate(size_t index) {
     return inPin(0).generate() - inPin(1).generate();
 }
 
+AuADSR::AuADSR() : m_t(0), m_last(-1), m_r(0) {
+    addInPin("amplitude", 1);
+    addInPin("A", 0.1);
+    addInPin("D", 0.4);
+    addInPin("S", 0.6);
+    addInPin("R", 0.8);
+    addOutPin("out");
+}
+
+namespace {
+float calcADS(float t, float A, float D, float S) {
+    if (t <= A) { // We're in attack phase, raise until t == A
+        float a = (t / A);
+        return a;
+    }
+    t -= A;
+    if (t <= D) { // We're in decay phase, lower until t == A + D
+        float d = (1 - t / D);
+        float a = S + d * (1 - S);
+        return a;
+    }
+    return S; // We're in sustain phase, return S while note on
+}
+}  // namespace
+
+float AuADSR::generate(size_t index) {
+    const float amplitude = inPin(0).generate();
+    const float A = inPin(1).generate();
+    const float D = inPin(2).generate();
+    const float S = std::min(inPin(3).generate(), 1.0f);
+    const float R = inPin(4).generate();
+
+    const float ads = calcADS(m_t, A, D, S);
+    m_t += 1.0 / 48000.0;
+    // Assume note change when amplitude change
+    if (amplitude != m_last) {
+        m_last = amplitude;
+        // Assume note off, start release phase from current value
+        if (amplitude == 0) {
+            m_r = ads * m_last;
+            m_rc = m_r / (R * 48000.0f);
+        }
+        if (amplitude != 0 || m_r == 0) {
+            m_t = 0;
+            m_r = 0;
+        }
+    }
+    if (m_r > 0) {
+        m_r = std::max(0.0f, m_r - m_rc);
+        return m_r;
+    }
+    return amplitude * ads;
+}
+
 AuNodeGraphPtr createTestGraph() {
     AuNodeGraphPtr node_graph = std::make_shared<AuNodeGraph>();
+
     AuNodePtr midi1 = std::make_shared<AuMidiSource>();
     node_graph->addNode(midi1);
+
     AuNodePtr sin1 = std::make_shared<AuSineGenerator>();
-    sin1->inPin(0).set(440);
-    sin1->inPin(1).set(0.8);
     node_graph->addNode(sin1);
+    sin1->inPin(0).connect(midi1, 1);
+
     node_graph->addNode(std::make_shared<AuHexGenerator>());
+
     AuNodePtr sub = std::make_shared<AuSub>();
-    sub->inPin(0).connect(sin1, 0);
     node_graph->addNode(sub);
+    sub->inPin(0).connect(sin1, 0);
     node_graph->setOutputNode(sub);
+
+    auto adsr = std::make_shared<AuADSR>();
+    adsr->inPin(0).connect(midi1, 0);
+    adsr->inPin(1).set(0.1);  // A
+    adsr->inPin(2).set(0.3);  // D
+    adsr->inPin(3).set(0.1);  // S
+    adsr->inPin(4).set(0.2);  // R
+    node_graph->addNode(adsr);
+    sin1->inPin(1).connect(adsr, 0);
+
     return node_graph;
 }

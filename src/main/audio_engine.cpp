@@ -16,12 +16,14 @@ class AudioEngineImpl : public AudioEngine {
     int init() override;
     void setGraph(AuNodeGraphPtr graph) override;
     AuNodeGraphPtr getGraph() override;
+    float getDb() const override;
 
    private:
     static void s_dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
     void dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
     ma_device m_device;
     AuNodeGraphPtr m_node_graph;
+    float m_db;
 };
 
 std::unique_ptr<AudioEngine> AudioEngine::create() {
@@ -60,15 +62,23 @@ AuNodeGraphPtr AudioEngineImpl::getGraph() {
     return m_node_graph;
 }
 
+float AudioEngineImpl::getDb() const {
+    return m_db;
+}
+
 void AudioEngineImpl::s_dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     ((AudioEngineImpl*)pDevice->pUserData)->dataCallback(pDevice, pOutput, pInput, frameCount);
 }
 
 void AudioEngineImpl::dataCallback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     float* out = (float*)pOutput;
+    float sum2 = 0.0f;
     for (ma_uint32 i = 0; i < frameCount; ++i) {
         float sample = m_node_graph ? m_node_graph->outputNode()->generate(0) : 0.0;
         *out++ = sample;
         *out++ = sample;
+        sum2 += sample * sample;
     }
+    float rms = sqrt(sum2 / frameCount);
+    m_db = 20 * log10(rms);
 }

@@ -138,6 +138,10 @@ void MainWindow_impl::frame() {
 #else
         ImGui::Text(std::string(node->name()).c_str());
 #endif
+        if (node == m_node_graph->getOutputNode()) {
+            ImGui::Text("Output: %.0f dB", m_audio.getDb());
+        }
+
         for (size_t i = 0; i < std::max(node->outPins(), node->inPins()); ++i) {
             if (i < node->inPins()) {
                 ed::PinId in_pin = m_id_mapper.getInPinId(node, i);
@@ -153,7 +157,7 @@ void MainWindow_impl::frame() {
                 ImGui::SetNextItemWidth(50);
                 ImGui::PushID(i);
                 if (inpin.node()) {
-                    ImGui::Text("%.1f", inpin.generate());
+                    // ImGui::Text("%.1f", inpin.generate());
                 } else {
                     ImGui::DragFloat("", &(node->inPin(i).value()), 0.1, 0, 100, "%.1f");
                 }

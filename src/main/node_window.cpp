@@ -27,6 +27,7 @@ NodeWindow_impl::~NodeWindow_impl() {
 
 void NodeWindow_impl::frame() {
     ImGui::Begin("Nodes");
+    if (ImGui::Button("ADSR")) m_audio.getGraph()->addNode(std::make_shared<AuADSR>());
     if (ImGui::Button("Sine")) m_audio.getGraph()->addNode(std::make_shared<AuSineGenerator>());
     if (ImGui::Button("Hex")) m_audio.getGraph()->addNode(std::make_shared<AuHexGenerator>());
     if (ImGui::Button("Sub")) m_audio.getGraph()->addNode(std::make_shared<AuSub>());

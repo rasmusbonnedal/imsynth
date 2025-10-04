@@ -25,6 +25,10 @@ class AuNodeGraph {
         m_output_node = node;
     }
 
+    AuNodePtr getOutputNode() const {
+        return m_output_node;
+    }
+
     AuNodePtr outputNode() {
         return m_output_node;
     }
@@ -144,6 +148,20 @@ class AuSub : public AuNodeBase {
     std::string_view name() const {
         return "Sub";
     }
+};
+
+class AuADSR : public AuNodeBase {
+   public:
+    AuADSR();
+    float generate(size_t index) override;
+    std::string_view name() const {
+        return "ADSR";
+    }
+   private:
+    float m_t;      // Time since note started
+    float m_last;   // Last amplitude to see if note changed
+    float m_r;      // Current release amplitude after note off
+    float m_rc;     // Amount to subtract from release each sample
 };
 
 AuNodeGraphPtr createTestGraph();

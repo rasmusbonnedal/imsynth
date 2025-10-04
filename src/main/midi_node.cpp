@@ -47,8 +47,7 @@ MidiDevice::MidiDevice() {
     UINT numDevices = midiInGetNumDevs();
     if (numDevices == 0) {
         printf("hepp\n");
-    }
-    if (midiInOpen(&hMidiIn, 0, (DWORD_PTR)MidiInProc, (DWORD_PTR)this, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
+    } else if (midiInOpen(&hMidiIn, 0, (DWORD_PTR)MidiInProc, (DWORD_PTR)this, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
         printf("Failed to open MIDI input device!");
     }
     midiInStart(hMidiIn);
