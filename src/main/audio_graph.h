@@ -10,6 +10,7 @@
 
 
 
+
 class AuNode;
 class AuNodeGraph;
 
@@ -125,6 +126,18 @@ class AuSineGenerator : public AuNodeBase {
     float m_phase;
     float m_multiplier;
 };
+
+class AuJitterGenerator : public AuNodeBase {
+   public:
+    AuJitterGenerator();
+    float generate(size_t index) override;
+    std::string_view name() const {
+        return "JitterGenerator";
+    }
+
+   private:
+ };
+
 
 struct HexWave;
 

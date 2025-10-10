@@ -1,6 +1,7 @@
 #include "audio_graph.h"
 #include "midi_node.h"
 
+
 #define STB_HEXWAVE_IMPLEMENTATION
 #include "stb_hexwave.h"
 
@@ -29,6 +30,23 @@ void AuNodeBase::addInPin(const std::string& name, float value) {
 
 void AuNodeBase::addOutPin(const std::string& name) {
     m_out_pins.emplace_back(name, 0.0f);
+}
+
+AuJitterGenerator::AuJitterGenerator() {
+    addInPin("input", 1.0);
+    addInPin("jitter", 0.1);
+    addOutPin("out");
+
+}
+
+float AuJitterGenerator::generate(size_t index) {
+    float input = inPin(0).generate();
+    float jitter_factor = inPin(1).generate()*input;
+
+    float r = rand() / (float)RAND_MAX;
+
+    return ((jitter_factor * r)-jitter_factor*0.5) + input;
+
 }
 
 AuSineGenerator::AuSineGenerator() {
@@ -217,6 +235,10 @@ AuNodeGraphPtr createTestGraph() {
     sub->inPin(0).connect(hexwave, 0);
     node_graph->setOutputNode(sub);
 
+
+    AuNodePtr jitter = std::make_shared<AuJitterGenerator>();
+    node_graph->addNode(jitter);
+    
     auto adsr = std::make_shared<AuADSR>();
     adsr->inPin(0).connect(midi1, 0);
     adsr->inPin(1).set(0.1);  // A
