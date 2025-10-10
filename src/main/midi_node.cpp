@@ -14,7 +14,7 @@ class MidiDevice {
         return m_amp;
     }
     float freq() {
-        return m_freq;
+        return m_freq + 0.5*m_freq*m_pitch;
     }
 
     static MidiDevice& getInstance();
@@ -34,6 +34,7 @@ class MidiDevice {
     HMIDIIN hMidiIn;
     float m_freq;
     float m_amp;
+    float m_pitch = 0.0;
     midi_key_status midi_keys[256] = {0};
 };
 
@@ -78,6 +79,15 @@ void MidiDevice::midiInProc(DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
         m_amp = 0.0f;
         midi_keys[data1].is_pressed = false;
         midi_keys[data1].amplitude = 0;
+    }
+
+    if (status == 0xe0) {
+        printf("pitch\n");
+        int bend_val = (data2 << 8) + data1;
+       
+        m_pitch = (float)(bend_val - 16384) / 16384.0f;
+        //printf("bend_value %f\n", m_pitch);
+        
     }
 
     // std::cout << "MIDI Message: Status=" << (int)status << ", Data1=" << (int)data1 << ", Data2=" << (int)data2 << std::endl;
