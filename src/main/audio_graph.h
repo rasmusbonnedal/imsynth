@@ -127,6 +127,19 @@ class AuSineGenerator : public AuNodeBase {
     float m_multiplier;
 };
 
+class AuEMAGenerator : public AuNodeBase {
+   public:
+    AuEMAGenerator();
+    float generate(size_t index) override;
+    std::string_view name() const {
+        return "EMAGenerator";
+    }
+
+   private:
+    float m_previous;
+    float m_alpha;
+};
+
 class AuJitterGenerator : public AuNodeBase {
    public:
     AuJitterGenerator();

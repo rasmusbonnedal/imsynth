@@ -66,6 +66,22 @@ float AuSineGenerator::generate(size_t index) {
     return inPin(1).generate() * sin(m_phase);
 }
 
+AuEMAGenerator::AuEMAGenerator() {
+    addInPin("in", 0);
+    addInPin("alpha", 0.9);
+    addOutPin("out");
+    m_alpha = 0.9;
+    m_previous = 0.0;
+}
+
+float AuEMAGenerator::generate(size_t index) {
+    float current = inPin(0).generate();
+    m_alpha = inPin(1).generate();
+    float out = m_alpha * current + (1.0 - m_alpha) * m_previous;
+    m_previous = out;
+    return out;
+}
+
 namespace {
 void sawtooth(int& reflect, float& time, float& height, float& wait) {
     reflect = 1;
@@ -238,6 +254,9 @@ AuNodeGraphPtr createTestGraph() {
 
     AuNodePtr jitter = std::make_shared<AuJitterGenerator>();
     node_graph->addNode(jitter);
+
+    AuNodePtr EWA = std::make_shared<AuEMAGenerator>();
+    node_graph->addNode(EWA);
     
     auto adsr = std::make_shared<AuADSR>();
     adsr->inPin(0).connect(midi1, 0);
