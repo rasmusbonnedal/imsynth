@@ -127,6 +127,26 @@ class AuSineGenerator : public AuNodeBase {
     float m_multiplier;
 };
 
+/*
+class AuLooper : public AuNodeBase {
+   public:
+    AuLooper();
+    float generate(size_t index) override;
+    std::string_view name() const {
+        return "Looper";
+    }
+
+   private:
+    struct sample {
+        float amp;
+        float freq;
+        float start_time;
+        float duration;
+    };
+    sample m_samples[8] = {0};
+        
+};
+*/
 class AuEMAGenerator : public AuNodeBase {
    public:
     AuEMAGenerator();

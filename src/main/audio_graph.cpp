@@ -1,5 +1,6 @@
 #include "audio_graph.h"
 #include "midi_node.h"
+#include <chrono>
 
 
 #define STB_HEXWAVE_IMPLEMENTATION
@@ -257,6 +258,9 @@ AuNodeGraphPtr createTestGraph() {
 
     AuNodePtr EWA = std::make_shared<AuEMAGenerator>();
     node_graph->addNode(EWA);
+
+    AuNodePtr repeat = std::make_shared<AuMidiRepeater>();
+    node_graph->addNode(repeat);
     
     auto adsr = std::make_shared<AuADSR>();
     adsr->inPin(0).connect(midi1, 0);

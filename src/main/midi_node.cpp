@@ -4,6 +4,7 @@
 
 #include <Windows.h>
 #include <assert.h>
+#include <chrono>
 
 class MidiDevice {
    public:
@@ -36,6 +37,17 @@ class MidiDevice {
     float m_amp;
     float m_pitch = 0.0;
     midi_key_status midi_keys[256] = {0};
+
+    struct sample {
+        float amp;
+        float freq;
+        double start_time;
+        double duration;
+    };
+    int m_sample_count = 0;
+    sample m_samples[8] = {0};
+    int m_current_playback =0;
+    double m_start_playback;
 };
 
 void CALLBACK MidiDevice::MidiInProc(HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
@@ -68,17 +80,31 @@ void MidiDevice::midiInProc(DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
     BYTE status = dwParam1 & 0xFF;
     BYTE data1 = (dwParam1 >> 8) & 0xFF;
     BYTE data2 = (dwParam1 >> 16) & 0xFF;
-
+   
+    
     if (status == 144) {
         m_freq = map_midi_to_freq(data1);
         m_amp = float(data2) / 127.0;
         midi_keys[data1].amplitude = m_amp;
         midi_keys[data1].is_pressed = true;
+        m_samples[m_sample_count].amp = m_amp;
+        m_samples[m_sample_count].freq = m_freq;
+
+        auto now = std::chrono::system_clock::now();
+        auto duration = now.time_since_epoch();
+        m_samples[m_sample_count].start_time = std::chrono::duration<double>(duration).count();
+
+        m_sample_count++;
+
     }
     if (status == 128) {
         m_amp = 0.0f;
         midi_keys[data1].is_pressed = false;
         midi_keys[data1].amplitude = 0;
+
+        auto now = std::chrono::system_clock::now();
+        auto duration = now.time_since_epoch();
+        m_samples[m_sample_count - 1].duration = std::chrono::duration<double>(duration).count() - m_samples[m_sample_count - 1].start_time;
     }
 
     if (status == 0xe0) {
@@ -89,6 +115,8 @@ void MidiDevice::midiInProc(DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
         //printf("bend_value %f\n", m_pitch);
         
     }
+        
+    
 
     // std::cout << "MIDI Message: Status=" << (int)status << ", Data1=" << (int)data1 << ", Data2=" << (int)data2 << std::endl;
     printf("MIDI Message: Status= %x, Data1= %x, Data2= %x, \n", status, data1, data2);
@@ -115,6 +143,91 @@ float AuMidiSource::generate(size_t index) {
         return MidiDevice::getInstance().freq();
     }
     return 0.0f;
+}
+
+AuMidiRepeater::AuMidiRepeater() {
+    addInPin("amp", 0.0);
+    addInPin("freq", 0.0);
+    addInPin("speed", 1.0);
+    addOutPin("amp");
+    addOutPin("freq");
+}
+
+float AuMidiRepeater::generate(size_t index) {
+    assert(index < outPins());
+    float amp = inPin(0).generate();
+    float freq = inPin(1).generate();
+    float speed = inPin(2).generate();
+    if (m_current_record < 9) {
+    
+        if (!m_start_repeat && amp != 0.0) {
+            m_start_repeat = true;
+        }
+        if (m_start_repeat) {
+            if (m_current_record == 0) {
+                m_notes[0].amp = amp;
+                m_notes[0].freq = freq;
+                auto now = std::chrono::system_clock::now();
+                auto duration = now.time_since_epoch();
+                m_notes[0].start = std::chrono::duration<double>(duration).count();
+                m_current_record++;
+            } 
+            if (m_notes[m_current_record - 1].amp != amp) {
+                auto now = std::chrono::system_clock::now();
+                auto duration = now.time_since_epoch();
+                m_notes[m_current_record - 1].end = std::chrono::duration<double>(duration).count();
+                if (m_current_record == 8) m_current_record++;
+                if (amp != 0.0) {
+                    m_notes[m_current_record].start = m_notes[m_current_record - 1].end;
+                    m_notes[m_current_record].amp = amp;
+                    m_notes[m_current_record].freq = freq;
+                    m_current_record++;
+                } 
+            
+            }
+        }
+        if (index == 0) {
+            return amp;
+        } else if (index == 1) {
+            return freq;
+        }
+    } else {
+        if (m_start_playback == -1.0) {
+            auto now = std::chrono::system_clock::now();
+            auto duration = now.time_since_epoch();
+            m_start_playback = std::chrono::duration<double>(duration).count();
+        }
+        auto now = std::chrono::system_clock::now();
+        auto duration = now.time_since_epoch();
+        double local_time = std::chrono::duration<double>(duration).count()-m_start_playback;
+        local_time *= speed;
+        float p_amp = 0.0;
+        float p_freq = 0.0;
+        
+        double sample_start = m_notes[0].start;
+        for (int i = 0; i < 8; i++) {
+            double l_s = m_notes[i].start - sample_start;
+            double l_e = m_notes[i].end - sample_start;
+            if (local_time >= l_s && local_time < l_e) {
+                p_amp = m_notes[i].amp;
+                p_freq = m_notes[i].freq;
+                break;
+            }
+        }
+
+        if (local_time >= m_notes[7].end - sample_start) {
+            m_start_playback = -1.0;
+        }
+
+
+        if (index == 0) {
+            return p_amp;
+        } else if (index == 1) {
+            return p_freq;
+        }
+    }
+
+    
 }
 
 std::unique_ptr<ImguiWindow> MidiWindow::create() {
