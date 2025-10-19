@@ -75,19 +75,19 @@ int AudioEngineImpl::init() {
     config.playback.format = ma_format_unknown;  // Set to ma_format_unknown to use the device's native format.
     config.playback.channels = 0;            // Set to 0 to use the device's native channel count.
     config.playback.shareMode = ma_share_mode_exclusive;
-    config.sampleRate = 0;               // Set to 0 to use the device's native sample rate.
+    config.playback.pDeviceID = &pPlaybackInfos[0].id;
+    config.sampleRate = 0;                   // Set to 0 to use the device's native sample rate.
     config.dataCallback = s_dataCallback;    // This function will be called when miniaudio needs more data.
     config.pUserData = this;                 // Can be accessed from the device object (device.pUserData).
     config.noPreSilencedOutputBuffer = true;
     config.noClip = true;
     config.noFixedSizedCallback = true;
     config.noDisableDenormals = true;
-    config.periods = 0;
+    config.periods = 2;
     config.periodSizeInFrames = 200;
     config.performanceProfile = ma_performance_profile_low_latency;
     config.wasapi.noAutoConvertSRC = true;
     config.wasapi.usage = ma_wasapi_usage_pro_audio;
-
 
     if (ma_device_init(NULL, &config, &m_device) != MA_SUCCESS) {
         return -1;  // Failed to initialize the device.

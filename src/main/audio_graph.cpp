@@ -208,14 +208,37 @@ float calcADS(float t, float A, float D, float S) {
 }
 }  // namespace
 
+class DePopper {
+   public:
+    float value(float value) {
+        const float delta = 0.01f;
+        float diff = abs(value - m_last);
+        if (diff < delta) {
+            m_last = value;
+        } else {
+            if (value < m_last) {
+                m_last = m_last - delta;
+            } else {
+                m_last = m_last + delta;
+            }
+        }
+        return sqrt(m_last);
+    }
+
+   private:
+    float m_last = 0.0f;
+};
+
+
 float AuADSR::generate(size_t index) {
+    static DePopper de_popper;
     const float amplitude = inPin(0).generate();
     const float A = inPin(1).generate();
     const float D = inPin(2).generate();
     const float S = std::min(inPin(3).generate(), 1.0f);
     const float R = inPin(4).generate();
 
-    const float ads = calcADS(m_t, A, D, S);
+    float ads = calcADS(m_t, A, D, S);
     m_t += 1.0 / 48000.0;
     // Assume note change when amplitude change
     if (amplitude != m_last) {
@@ -226,15 +249,16 @@ float AuADSR::generate(size_t index) {
         }
         if (amplitude != 0 || m_r == 0) {
             m_t = 0;
+            ads = calcADS(m_t, A, D, S);
             m_r = 0;
         }
         m_last = amplitude;
     }
     if (m_r > 0) {
         m_r = std::max(0.0f, m_r - m_rc);
-        return m_r;
+        return de_popper.value(m_r);
     }
-    return amplitude * ads;
+    return de_popper.value(amplitude * ads);
 }
 
 AuNodeGraphPtr createTestGraph() {

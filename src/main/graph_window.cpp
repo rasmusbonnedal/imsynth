@@ -39,7 +39,7 @@ void oscilloscope(const AudioEngine& audio, float time_scale, int& pos, int& len
     }
     float cur = history.at(pos);
     int zeros_to_find = 8;
-    for (int i = 0; i < 48000; ++i) {
+    for (int i = 0; i < 4800; ++i) {
         if (--pos < 0) {
             pos += history.size();
         }
