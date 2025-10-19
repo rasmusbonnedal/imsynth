@@ -46,7 +46,7 @@ class MidiDevice {
     };
     int m_sample_count = 0;
     sample m_samples[8] = {0};
-    int m_current_playback =0;
+    int m_current_playback = 0;
     double m_start_playback;
 };
 
@@ -87,12 +87,12 @@ void MidiDevice::midiInProc(DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
         m_amp = float(data2) / 127.0;
         midi_keys[data1].amplitude = m_amp;
         midi_keys[data1].is_pressed = true;
-        m_samples[m_sample_count].amp = m_amp;
-        m_samples[m_sample_count].freq = m_freq;
+        m_samples[m_sample_count % 8].amp = m_amp;
+        m_samples[m_sample_count % 8].freq = m_freq;
 
         auto now = std::chrono::system_clock::now();
         auto duration = now.time_since_epoch();
-        m_samples[m_sample_count].start_time = std::chrono::duration<double>(duration).count();
+        m_samples[m_sample_count % 8].start_time = std::chrono::duration<double>(duration).count();
 
         m_sample_count++;
 
@@ -104,7 +104,8 @@ void MidiDevice::midiInProc(DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
 
         auto now = std::chrono::system_clock::now();
         auto duration = now.time_since_epoch();
-        m_samples[m_sample_count - 1].duration = std::chrono::duration<double>(duration).count() - m_samples[m_sample_count - 1].start_time;
+        m_samples[(m_sample_count + 7) % 8].duration =
+            std::chrono::duration<double>(duration).count() - m_samples[(m_sample_count + 7) % 8].start_time;
     }
 
     if (status == 0xe0) {
@@ -226,8 +227,7 @@ float AuMidiRepeater::generate(size_t index) {
             return p_freq;
         }
     }
-
-    
+    return 0;
 }
 
 std::unique_ptr<ImguiWindow> MidiWindow::create() {
