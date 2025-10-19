@@ -59,7 +59,7 @@ void CALLBACK MidiDevice::MidiInProc(HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwIns
 MidiDevice::MidiDevice() {
     UINT numDevices = midiInGetNumDevs();
     if (numDevices == 0) {
-        printf("hepp\n");
+        printf("No MIDI devices found\n");
     } else if (midiInOpen(&hMidiIn, 0, (DWORD_PTR)MidiInProc, (DWORD_PTR)this, CALLBACK_FUNCTION) != MMSYSERR_NOERROR) {
         printf("Failed to open MIDI input device!");
     }
@@ -119,8 +119,8 @@ void MidiDevice::midiInProc(DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
     
 
     // std::cout << "MIDI Message: Status=" << (int)status << ", Data1=" << (int)data1 << ", Data2=" << (int)data2 << std::endl;
-    printf("MIDI Message: Status= %x, Data1= %x, Data2= %x, \n", status, data1, data2);
-    printf("new freq %f \n", m_freq);
+    // printf("MIDI Message: Status= %x, Data1= %x, Data2= %x, \n", status, data1, data2);
+    // printf("new freq %f \n", m_freq);
 }
 
 float MidiDevice::map_midi_to_freq(BYTE midi_in) {
